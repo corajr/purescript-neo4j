@@ -9,9 +9,11 @@
   "dependencies": {
     "purescript-console": "^1.0.0",
     "purescript-aff": "^1.0.0",
-    "neo4j-driver": "^1.0.3"
+    "neo4j-driver": "^1.0.3",
+    "purescript-foreign": "^1.0.0"
   },
   "devDependencies": {
-    "purescript-psci-support": "^1.0.0"
+    "purescript-psci-support": "^1.0.0",
+    "purescript-spec": "^0.8.0"
   }
 }
