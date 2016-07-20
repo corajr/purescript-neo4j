@@ -1,0 +1,17 @@
+{
+  "name": "purescript-neo4j",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-console": "^1.0.0",
+    "purescript-aff": "^1.0.0",
+    "neo4j-driver": "^1.0.3"
+  },
+  "devDependencies": {
+    "purescript-psci-support": "^1.0.0"
+  }
+}
