@@ -1,9 +1,9 @@
 module Database.Neo4J where
 
 import Prelude
-import Data.Foreign (F)
-import Data.Foreign.Generic (Options(..), defaultOptions, readGeneric)
-import Data.Foreign.Class (class IsForeign)
+import Data.Foreign (F, Foreign)
+import Data.Foreign.Generic (Options(..), defaultOptions, readGeneric, toForeignGeneric)
+import Data.Foreign.Class (class IsForeign, read)
 
 import Data.Generic
 
@@ -40,4 +40,8 @@ data ConnectionInfo = ConnectionInfo
   , auth :: BasicAuth
   }
 
-foreign import mkAuth :: Username -> Password -> F BasicAuth
+
+mkAuth :: Username -> Password -> F BasicAuth
+mkAuth user pass = read (mkAuth_ user pass)
+
+foreign import mkAuth_ :: Username -> Password -> Foreign

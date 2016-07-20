@@ -12,10 +12,9 @@ function getNeo4J() {
   return g.neo4j.v1;
 }
 
-exports.mkAuth = function mkAuth(username) {
+exports.mkAuth_ = function mkAuth_(username) {
   return function(password) {
-    var neo4j = getNeo4J();
-    return neo4j.auth.basic(username, password);
+    return getNeo4J().auth.basic(username, password);
   };
 };
 
