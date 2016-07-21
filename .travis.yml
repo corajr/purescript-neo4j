@@ -1,0 +1,26 @@
+language: node_js
+jdk:
+  - oraclejdk8
+
+env:
+  - NEO4J_VERSION="3.0.3"
+  - PATH=$HOME/purescript:$HOME/node_modules/.bin:$PATH
+
+before_install:
+  # install Neo4j locally:
+  - wget dist.neo4j.org/neo4j-community-$NEO4J_VERSION-unix.tar.gz
+  - tar -xzf neo4j-community-$NEO4J_VERSION-unix.tar.gz
+  - mkdir -p neo4j-community-$NEO4J_VERSION/data/dbms
+  - cp .travis/auth neo4j-community-$NEO4J_VERSION/data/dbms/
+  - neo4j-community-$NEO4J_VERSION/bin/neo4j start
+
+install:
+  - TAG=$(wget -q -O - https://github.com/purescript/purescript/releases/latest --server-response --max-redirect 0 2>&1 | sed -n -e 's/.*Location:.*tag\///p')
+  - wget -O $HOME/purescript.tar.gz https://github.com/purescript/purescript/releases/download/$TAG/linux64.tar.gz
+  - tar -xvf $HOME/purescript.tar.gz -C $HOME/
+  - chmod a+x $HOME/purescript
+  - npm install
+  - bower install
+
+script:
+  - pulp test
