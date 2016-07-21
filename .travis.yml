@@ -1,4 +1,12 @@
+sudo: required
+dist: trusty
+
 language: java
+
+cache:
+  directories:
+  - node_modules # NPM packages
+  - output # psc compiled files
 
 jdk:
   - oraclejdk8
