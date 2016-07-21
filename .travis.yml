@@ -1,17 +1,19 @@
-language: node_js
+language: java
 
-addons:
-  apt:
-    packages:
-      - openjdk-8-jdk
+jdk:
+  - oraclejdk8
 
 env:
   global:
     - PATH=$HOME/purescript:$HOME/node_modules/.bin:$PATH
+    - NODE_VERSION="node"
   matrix:
     - NEO4J_VERSION="3.0.3"
 
 before_install:
+  # install node
+  - nvm install $NODE_VERSION
+  - nvm use $NODE_VERSION
   # install Neo4j locally:
   - wget dist.neo4j.org/neo4j-community-$NEO4J_VERSION-unix.tar.gz
   - tar -xzf neo4j-community-$NEO4J_VERSION-unix.tar.gz
