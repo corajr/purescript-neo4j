@@ -62,7 +62,7 @@ instance isForeignConnectionOpts :: IsForeign ConnectionOptions where
 
 defaultConnectionOptions :: ConnectionOptions
 defaultConnectionOptions = ConnectionOptions
-  { encrypted: true
+  { encrypted: false
   }
 
 data ConnectionInfo = ConnectionInfo

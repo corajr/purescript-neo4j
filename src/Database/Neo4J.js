@@ -37,7 +37,7 @@ exports.runQuery_ = function runQuery_(mkError, reject, accept, session, query, 
       .run(query, params)
       .then(function (result) {
         var records = [];
-        for (i = 0; i < result.records.length; i++) {
+        for (var i = 0; i < result.records.length; i++) {
           records.push(result.records[i]);
         }
         accept(result.records)();
