@@ -24,14 +24,16 @@ main = do
                                            , principal: username
                                            , credentials: pass
                                            }
+  let info = ConnectionInfo { url: "bolt://localhost"
+                            , auth: mkAuth "neo4j" "password4test"
+                            , connectionOpts: defaultConnectionOptions
+                            }
   describe "integration" do
-    describe "withConnection" do
-      it "wraps a database query in a session, closing the connection when finished" do
-        let info = ConnectionInfo { url: "bolt://localhost"
-                                  , auth: mkAuth "neo4j" "password4test"
-                                  , connectionOpts: defaultConnectionOptions
-                                  }
-        personResults <- withConnection info $ \session -> do
-          execute' (Query "CREATE (a:Person {name:'Arthur', title:'King'})") session
-          query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query Person) (mkParams {name: "Arthur"}) session
+    describe "withRollback" do
+      it "wraps a database query in a transaction, closing the connection when finished" do
+        personResults <- withDriver info $ \driver ->
+          withSession driver $ \session -> do
+            withRollback session $ \transaction -> do
+              execute' (Query "CREATE (a:Person {name:'Arthur', title:'King'})") transaction
+              query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query Person) (mkParams {name: "Arthur"}) transaction
         personResults `shouldEqual` [Person { name: "Arthur", title: "King" }]

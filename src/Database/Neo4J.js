@@ -31,21 +31,39 @@ exports.mkSession_ = function mkSession_(driver) {
   };
 };
 
-exports.runQuery_ = function runQuery_(mkError, reject, accept, session, query, params) {
+exports.runQuery_ = function runQuery_(mkError, reject, accept, transaction, query, params) {
   return function() {
-    session
+    transaction
       .run(query, params)
       .then(function (result) {
         var records = [];
         for (var i = 0; i < result.records.length; i++) {
-          records.push(result.records[i]);
+          records.push(result.records[i]._fields[0].properties);
         }
-        accept(result.records)();
+        accept(records)();
       })
       .catch(function (err) {
         var myError = mkError(err.message);
         reject(myError)();
       });
+  };
+};
+
+exports.beginTransaction_ = function beginTransaction_(session) {
+  return function() {
+    return session.beginTransaction();
+  };
+};
+
+exports.commitTransaction_ = function commitTransaction_(transaction) {
+  return function() {
+    return transaction.commit();
+  };
+};
+
+exports.rollbackTransaction_ = function rollbackTransaction_(transaction) {
+  return function() {
+    return transaction.rollback();
   };
 };
 

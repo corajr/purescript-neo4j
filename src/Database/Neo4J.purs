@@ -86,31 +86,54 @@ mkSession driver = runFn1 mkSession_ driver
 mkParams :: forall a. a -> Params
 mkParams = Params <<< toForeign
 
-withConnection :: forall eff a.
-                  ConnectionInfo
-               -> (Session -> Aff (db :: DB | eff) a)
-               -> Aff (db :: DB | eff) a
-withConnection info f = do
+withDriver :: forall eff a.
+              ConnectionInfo
+           -> (Driver -> Aff (db :: DB | eff) a)
+           -> Aff (db :: DB | eff) a
+withDriver info f = do
   driver <- liftEff $ mkDriver info
+  finally (f driver) $ closeDriver driver
+
+withSession :: forall eff a.
+               Driver
+            -> (Session -> Aff (db :: DB | eff) a)
+            -> Aff (db :: DB | eff) a
+withSession driver f = do
   session <- liftEff $ mkSession driver
-  finally (f session) $ closeSession session *> closeDriver driver
+  finally (f session) $ closeSession session
 
-execute :: forall eff. Query Unit -> Params -> Session -> Aff (db :: DB | eff) Unit
-execute q params session = void (privateRunQuery_ q params session)
+withTransaction :: forall eff a.
+                   Session
+                -> (Transaction -> Aff (db :: DB | eff) a)
+                -> Aff (db :: DB | eff) a
+withTransaction session f = do
+  transaction <- liftEff $ runFn1 beginTransaction_ session
+  finally (f transaction) (liftEff $ runFn1 commitTransaction_ transaction)
 
-execute' :: forall eff. Query Unit -> Session -> Aff (db :: DB | eff) Unit
+withRollback :: forall eff a.
+                Session
+             -> (Transaction -> Aff (db :: DB | eff) a)
+             -> Aff (db :: DB | eff) a
+withRollback session f = do
+  transaction <- liftEff $ runFn1 beginTransaction_ session
+  finally (f transaction) (liftEff $ runFn1 rollbackTransaction_ transaction)
+
+execute :: forall eff. Query Unit -> Params -> Transaction -> Aff (db :: DB | eff) Unit
+execute q params transaction = void (privateRunQuery_ q params transaction)
+
+execute' :: forall eff. Query Unit -> Transaction -> Aff (db :: DB | eff) Unit
 execute' q = execute q (mkParams {})
 
-query :: forall eff a. (IsForeign a) => Query a -> Params -> Session -> Aff (db :: DB | eff) (Array a)
-query q params session =
-  either liftError pure =<< map (traverse read) (privateRunQuery_ q params session)
+query :: forall eff a. (IsForeign a) => Query a -> Params -> Transaction -> Aff (db :: DB | eff) (Array a)
+query q params transaction =
+  either liftError pure =<< map (traverse read) (privateRunQuery_ q params transaction)
 
-query' :: forall eff a. (IsForeign a) => Query a -> Session -> Aff (db :: DB | eff) (Array a)
+query' :: forall eff a. (IsForeign a) => Query a -> Transaction -> Aff (db :: DB | eff) (Array a)
 query' q = query q (mkParams {})
 
-privateRunQuery_ :: forall eff a. Query a -> Params -> Session -> Aff (db :: DB | eff) (Array Foreign)
-privateRunQuery_ q (Params params) session =
-  makeAff (\reject accept -> runFn6 runQuery_ error reject accept session (show q) params)
+privateRunQuery_ :: forall eff a. Query a -> Params -> Transaction -> Aff (db :: DB | eff) (Array Foreign)
+privateRunQuery_ q (Params params) transaction =
+  makeAff (\reject accept -> runFn6 runQuery_ error reject accept transaction (show q) params)
 
 closeSession :: forall eff. Session -> Aff (db :: DB | eff) Unit
 closeSession session = liftEff $ runFn1 closeSession_ session
@@ -127,7 +150,13 @@ foreign import mkDriver_ :: forall eff. Fn3 String Foreign Foreign (Eff (db :: D
 
 foreign import mkSession_ :: forall eff. Fn1 Driver (Eff (db :: DB | eff) Session)
 
-foreign import runQuery_ :: forall eff. Fn6 (String -> Error) (Error -> Eff (db :: DB | eff) Unit) (Array Foreign -> Eff (db :: DB | eff) Unit) Session String Foreign (Eff (db :: DB | eff) Unit)
+foreign import runQuery_ :: forall eff. Fn6 (String -> Error) (Error -> Eff (db :: DB | eff) Unit) (Array Foreign -> Eff (db :: DB | eff) Unit) Transaction String Foreign (Eff (db :: DB | eff) Unit)
+
+foreign import beginTransaction_ :: forall eff. Fn1 Session (Eff (db :: DB | eff) Transaction)
+
+foreign import commitTransaction_ :: forall eff. Fn1 Transaction (Eff (db :: DB | eff) Unit)
+
+foreign import rollbackTransaction_ :: forall eff. Fn1 Transaction (Eff (db :: DB | eff) Unit)
 
 foreign import closeSession_ :: forall eff. Fn1 Session (Eff (db :: DB | eff) Unit)
 
