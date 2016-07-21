@@ -3,9 +3,15 @@ module Test.Neo4J where
 import Prelude
 
 import Test.Spec (describe, pending, it)
-import Test.Spec.Assertions (shouldEqual)
+import Test.Spec.Assertions (shouldEqual, fail)
+import Test.Spec.Assertions.Aff (expectError)
 import Test.QuickCheck ((===))
 import Test.Spec.QuickCheck (quickCheck)
+
+import Data.Either (Either(..))
+import Control.Monad.Aff (attempt)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console (log)
 
 import Database.Neo4J
 import Test.Fixture
@@ -25,7 +31,10 @@ main = do
                                   , auth: mkAuth "neo4j" "password4test"
                                   , connectionOpts: defaultConnectionOptions
                                   }
-        personResults <- withConnection info $ \session -> do
+        personResults <- attempt $ withConnection info $ \session -> do
           execute' (Query "CREATE (a:Person {name:'Arthur', title:'King'})") session
           query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query Person) (mkParams {name: "Arthur"}) session
-        personResults `shouldEqual` [Person { name: "Arthur", title: "King" }]
+        liftEff $ log "reached"
+        case personResults of
+          Left err -> fail (show err)
+          Right records -> records `shouldEqual` [Person { name: "Arthur", title: "King" }]

@@ -2,7 +2,7 @@ module Database.Neo4J where
 
 import Prelude
 import Data.Function.Uncurried
-import Control.Monad.Aff (Aff, makeAff, finally)
+import Control.Monad.Aff (Aff, makeAff, finally, liftEff')
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (Error, error)
@@ -96,25 +96,27 @@ withConnection info f = do
   finally (f session) $ closeSession session *> closeDriver driver
 
 execute :: forall eff. Query Unit -> Params -> Session -> Aff (db :: DB | eff) Unit
-execute q (Params params) session = void do
-  makeAff (\error success -> runFn5 runQuery_ error success session (show q) params)
+execute q params session = void (privateRunQuery_ q params session)
 
 execute' :: forall eff. Query Unit -> Session -> Aff (db :: DB | eff) Unit
-execute' q session = execute q (mkParams {}) session
+execute' q = execute q (mkParams {})
 
 query :: forall eff a. (IsForeign a) => Query a -> Params -> Session -> Aff (db :: DB | eff) (Array a)
-query q (Params params) session =
-  let effect = makeAff (\error success -> runFn5 runQuery_ error success session (show q) params)
-  in either liftError pure =<< map (traverse read) effect
+query q params session =
+  either liftError pure =<< map (traverse read) (privateRunQuery_ q params session)
 
 query' :: forall eff a. (IsForeign a) => Query a -> Session -> Aff (db :: DB | eff) (Array a)
 query' q = query q (mkParams {})
 
+privateRunQuery_ :: forall eff a. Query a -> Params -> Session -> Aff (db :: DB | eff) (Array Foreign)
+privateRunQuery_ q (Params params) session =
+  makeAff (\reject accept -> runFn6 runQuery_ error reject accept session (show q) params)
+
 closeSession :: forall eff. Session -> Aff (db :: DB | eff) Unit
-closeSession session = makeAff (\error success -> runFn2 closeSession_ success session)
+closeSession session = makeAff (\reject accept -> runFn2 closeSession_ accept session)
 
 closeDriver :: forall eff. Driver -> Aff (db :: DB | eff) Unit
-closeDriver driver = makeAff (\error success -> runFn2 closeDriver_ success driver)
+closeDriver driver = makeAff (\reject accept -> runFn2 closeDriver_ accept driver)
 
 liftError :: forall e a. ForeignError -> Aff e a
 liftError err = throwError $ error (show err)
@@ -125,7 +127,7 @@ foreign import mkDriver_ :: forall eff. Fn3 String Foreign Foreign (Eff (db :: D
 
 foreign import mkSession_ :: forall eff. Fn1 Driver (Eff (db :: DB | eff) Session)
 
-foreign import runQuery_ :: forall eff. Fn5 (Error -> Eff (db :: DB | eff) Unit) (Array Foreign -> Eff (db :: DB | eff) Unit) Session String Foreign (Eff (db :: DB | eff) Unit)
+foreign import runQuery_ :: forall eff. Fn6 (String -> Error) (Error -> Eff (db :: DB | eff) Unit) (Array Foreign -> Eff (db :: DB | eff) Unit) Session String Foreign (Eff (db :: DB | eff) Unit)
 
 foreign import closeSession_ :: forall eff. Fn2 (Unit -> Eff (db :: DB | eff) Unit) Session (Eff (db :: DB | eff) Unit)
 
