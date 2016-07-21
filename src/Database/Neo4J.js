@@ -49,14 +49,14 @@ exports.runQuery_ = function runQuery_(mkError, reject, accept, session, query, 
   };
 };
 
-exports.closeSession_ = function closeSession_(callback, session) {
+exports.closeSession_ = function closeSession_(session) {
   return function() {
-    session.close(callback());
+    session.close();
   };
 };
 
-exports.closeDriver_ = function closeDriver_(callback, driver) {
+exports.closeDriver_ = function closeDriver_(driver) {
   return function() {
-    driver.close(callback());
+    driver.close();
   };
 };

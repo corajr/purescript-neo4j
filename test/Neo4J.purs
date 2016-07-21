@@ -31,10 +31,7 @@ main = do
                                   , auth: mkAuth "neo4j" "password4test"
                                   , connectionOpts: defaultConnectionOptions
                                   }
-        personResults <- attempt $ withConnection info $ \session -> do
+        personResults <- withConnection info $ \session -> do
           execute' (Query "CREATE (a:Person {name:'Arthur', title:'King'})") session
           query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query Person) (mkParams {name: "Arthur"}) session
-        liftEff $ log "reached"
-        case personResults of
-          Left err -> fail (show err)
-          Right records -> records `shouldEqual` [Person { name: "Arthur", title: "King" }]
+        personResults `shouldEqual` [Person { name: "Arthur", title: "King" }]

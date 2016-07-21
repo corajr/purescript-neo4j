@@ -113,10 +113,10 @@ privateRunQuery_ q (Params params) session =
   makeAff (\reject accept -> runFn6 runQuery_ error reject accept session (show q) params)
 
 closeSession :: forall eff. Session -> Aff (db :: DB | eff) Unit
-closeSession session = makeAff (\reject accept -> runFn2 closeSession_ accept session)
+closeSession session = liftEff $ runFn1 closeSession_ session
 
 closeDriver :: forall eff. Driver -> Aff (db :: DB | eff) Unit
-closeDriver driver = makeAff (\reject accept -> runFn2 closeDriver_ accept driver)
+closeDriver driver = liftEff $ runFn1 closeDriver_ driver
 
 liftError :: forall e a. ForeignError -> Aff e a
 liftError err = throwError $ error (show err)
@@ -129,6 +129,6 @@ foreign import mkSession_ :: forall eff. Fn1 Driver (Eff (db :: DB | eff) Sessio
 
 foreign import runQuery_ :: forall eff. Fn6 (String -> Error) (Error -> Eff (db :: DB | eff) Unit) (Array Foreign -> Eff (db :: DB | eff) Unit) Session String Foreign (Eff (db :: DB | eff) Unit)
 
-foreign import closeSession_ :: forall eff. Fn2 (Unit -> Eff (db :: DB | eff) Unit) Session (Eff (db :: DB | eff) Unit)
+foreign import closeSession_ :: forall eff. Fn1 Session (Eff (db :: DB | eff) Unit)
 
-foreign import closeDriver_ :: forall eff. Fn2 (Unit -> Eff (db :: DB | eff) Unit) Driver (Eff (db :: DB | eff) Unit)
+foreign import closeDriver_ :: forall eff. Fn1 Driver (Eff (db :: DB | eff) Unit)
