@@ -18,8 +18,32 @@ exports.mkAuth_ = function mkAuth_(username) {
   };
 };
 
-exports.connect_ = function connect_() {
-  return function(success, error) {
-    var neo4j = getNeo4J();
-  };
+exports.mkDriver_ = function mkDriver_(url, auth, opts) {
+  var neo4j = getNeo4J();
+  return neo4j.driver(url, auth, opts);
+};
+
+exports.mkSession_ = function mkSession_(driver) {
+  return driver.session();
+};
+
+exports.runQuery_ = function runQuery_(error, success, session, query, params) {
+  session
+    .run(query, params)
+    .then(function (result) {
+      var records = [];
+      for (i = 0; i < result.records.length; i++) {
+        records.push(result.records[i]);
+      }
+      success(result.records);
+    })
+    .catch(error);
+};
+
+exports.closeSession_ = function closeSession_(callback, session) {
+  session.close(callback);
+};
+
+exports.closeDriver_ = function closeDriver_(callback, driver) {
+  driver.close(callback);
 };
