@@ -1,18 +1,18 @@
 module Database.Neo4J where
 
 import Prelude
-import Data.Either (either)
 import Data.Function.Uncurried
-import Data.Generic (class Generic, gEq, gShow)
-import Data.Traversable (traverse)
+import Control.Monad.Aff (Aff, makeAff, finally)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (Error, error)
 import Control.Monad.Error.Class (throwError)
-import Control.Monad.Aff (Aff, makeAff, finally)
+import Data.Either (either)
 import Data.Foreign (F, Foreign, toForeign, unsafeFromForeign, ForeignError)
 import Data.Foreign.Class (class IsForeign, read)
-import Data.Foreign.Generic (Options, defaultOptions, readGeneric, toForeignGeneric)
+import Data.Foreign.Generic (toForeignGeneric, Options, defaultOptions, readGeneric)
+import Data.Generic (class Generic, gEq, gShow)
+import Data.Traversable (traverse)
 
 foreign import data Driver :: *
 foreign import data Session :: *
@@ -43,7 +43,7 @@ instance eqQuery :: Eq (Query a) where
 instance showQuery :: Show (Query a) where
   show (Query n) = n
 
-type Params = Foreign
+newtype Params = Params Foreign
 
 myForeignOpts :: Options
 myForeignOpts = defaultOptions { unwrapNewtypes = true }
@@ -83,6 +83,9 @@ mkDriver (ConnectionInfo { url, auth, connectionOpts }) =
 mkSession :: forall eff. Driver -> Eff (db :: DB | eff) Session
 mkSession driver = runFn1 mkSession_ driver
 
+mkParams :: forall a. a -> Params
+mkParams = Params <<< toForeign
+
 withConnection :: forall eff a.
                   ConnectionInfo
                -> (Session -> Aff (db :: DB | eff) a)
@@ -92,13 +95,20 @@ withConnection info f = do
   session <- liftEff $ mkSession driver
   finally (f session) $ closeSession session *> closeDriver driver
 
+execute :: forall eff. Query Unit -> Params -> Session -> Aff (db :: DB | eff) Unit
+execute q (Params params) session = void do
+  makeAff (\error success -> runFn5 runQuery_ error success session (show q) params)
+
+execute' :: forall eff. Query Unit -> Session -> Aff (db :: DB | eff) Unit
+execute' q session = execute q (mkParams {}) session
+
 query :: forall eff a. (IsForeign a) => Query a -> Params -> Session -> Aff (db :: DB | eff) (Array a)
-query q params session =
+query q (Params params) session =
   let effect = makeAff (\error success -> runFn5 runQuery_ error success session (show q) params)
   in either liftError pure =<< map (traverse read) effect
 
 query' :: forall eff a. (IsForeign a) => Query a -> Session -> Aff (db :: DB | eff) (Array a)
-query' q = query q (toForeign {})
+query' q = query q (mkParams {})
 
 closeSession :: forall eff. Session -> Aff (db :: DB | eff) Unit
 closeSession session = makeAff (\error success -> runFn2 closeSession_ success session)
@@ -115,7 +125,7 @@ foreign import mkDriver_ :: forall eff. Fn3 String Foreign Foreign (Eff (db :: D
 
 foreign import mkSession_ :: forall eff. Fn1 Driver (Eff (db :: DB | eff) Session)
 
-foreign import runQuery_ :: forall eff. Fn5 (Error -> Eff (db :: DB | eff) Unit) (Array Foreign -> Eff (db :: DB | eff) Unit) Session String Params (Eff (db :: DB | eff) Unit)
+foreign import runQuery_ :: forall eff. Fn5 (Error -> Eff (db :: DB | eff) Unit) (Array Foreign -> Eff (db :: DB | eff) Unit) Session String Foreign (Eff (db :: DB | eff) Unit)
 
 foreign import closeSession_ :: forall eff. Fn2 (Unit -> Eff (db :: DB | eff) Unit) Session (Eff (db :: DB | eff) Unit)
 
