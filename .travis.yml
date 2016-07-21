@@ -4,8 +4,10 @@ jdk:
   - oraclejdk8
 
 env:
-  - NEO4J_VERSION="3.0.3"
-  - PATH=$HOME/purescript:$HOME/node_modules/.bin:$PATH
+  global:
+    - PATH=$HOME/purescript:$HOME/node_modules/.bin:$PATH
+  matrix:
+    - NEO4J_VERSION="3.0.3"
 
 before_install:
   # install Neo4j locally:
