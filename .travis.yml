@@ -1,7 +1,9 @@
 language: node_js
 
-jdk:
-  - oraclejdk8
+addons:
+  apt:
+    packages:
+      - openjdk-8-jdk
 
 env:
   global:
