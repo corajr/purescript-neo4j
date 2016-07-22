@@ -1,5 +1,7 @@
 {
   "name": "purescript-neo4j",
+  "homepage": "https://github.com/corajr/purescript-neo4j",
+  "license": "MIT",
   "ignore": [
     "**/.*",
     "node_modules",
@@ -17,5 +19,9 @@
     "purescript-psci-support": "^1.0.0",
     "purescript-spec": "^0.8.0",
     "purescript-spec-quickcheck": "^0.9.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/corajr/purescript-neo4j.git"
   }
 }
