@@ -12,9 +12,9 @@ Assuming you have a type `Person` with `name` and `title` fields, and an appropr
 main = do
   results <- withDriver info $ \driver ->
     withSession driver $ \session -> do
-      withTransaction session $ \transaction -> do
-        execute' (Query "CREATE (a:Person {name:'Arthur', title:'King'})") transaction
-        query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query Person) (mkParams {name: "Arthur"}) transaction
+      withTransaction session $ do
+        execute' (Query "CREATE (a:Person {name:'Arthur', title:'King'})")
+        query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query Person) (mkParams {name: "Arthur"})
   results `shouldEqual` [Person { name: "Arthur", title: "King" }]
 ```
 

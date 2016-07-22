@@ -7,6 +7,8 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (Error, error)
 import Control.Monad.Error.Class (throwError)
+import Control.Monad.Reader.Trans   (ReaderT(), runReaderT, ask)
+import Control.Monad.Trans (lift)
 import Data.Either (either)
 import Data.Foreign (F, Foreign, toForeign, unsafeFromForeign, ForeignError)
 import Data.Foreign.Class (class IsForeign, read)
@@ -42,6 +44,8 @@ instance eqQuery :: Eq (Query a) where
   eq (Query a) (Query b) = a == b
 instance showQuery :: Show (Query a) where
   show (Query n) = n
+
+type InTransaction eff a = ReaderT Transaction (Aff (db :: DB | eff)) a
 
 newtype Params = Params Foreign
 
@@ -104,36 +108,38 @@ withSession driver f = do
 
 withTransaction :: forall eff a.
                    Session
-                -> (Transaction -> Aff (db :: DB | eff) a)
+                -> InTransaction eff a
                 -> Aff (db :: DB | eff) a
 withTransaction session f = do
   transaction <- liftEff $ runFn1 beginTransaction_ session
-  finally (f transaction) (liftEff $ runFn1 commitTransaction_ transaction)
+  finally (runReaderT f transaction) (liftEff $ runFn1 commitTransaction_ transaction)
 
 withRollback :: forall eff a.
                 Session
-             -> (Transaction -> Aff (db :: DB | eff) a)
+             -> InTransaction eff a
              -> Aff (db :: DB | eff) a
 withRollback session f = do
   transaction <- liftEff $ runFn1 beginTransaction_ session
-  finally (f transaction) (liftEff $ runFn1 rollbackTransaction_ transaction)
+  finally (runReaderT f transaction) (liftEff $ runFn1 rollbackTransaction_ transaction)
 
-execute :: forall eff. Query Unit -> Params -> Transaction -> Aff (db :: DB | eff) Unit
-execute q params transaction = void (privateRunQuery_ q params transaction)
+execute :: forall eff. Query Unit -> Params -> InTransaction eff Unit
+execute q params = void (privateRunQuery_ q params)
 
-execute' :: forall eff. Query Unit -> Transaction -> Aff (db :: DB | eff) Unit
+execute' :: forall eff. Query Unit -> InTransaction eff Unit
 execute' q = execute q (mkParams {})
 
-query :: forall eff a. (IsForeign a) => Query a -> Params -> Transaction -> Aff (db :: DB | eff) (Array a)
-query q params transaction =
-  either liftError pure =<< map (traverse read) (privateRunQuery_ q params transaction)
+query :: forall eff a. (IsForeign a) => Query a -> Params -> InTransaction eff (Array a)
+query q params = do
+  results <- privateRunQuery_ q params
+  lift $ either liftError pure (traverse read results)
 
-query' :: forall eff a. (IsForeign a) => Query a -> Transaction -> Aff (db :: DB | eff) (Array a)
+query' :: forall eff a. (IsForeign a) => Query a -> InTransaction eff (Array a)
 query' q = query q (mkParams {})
 
-privateRunQuery_ :: forall eff a. Query a -> Params -> Transaction -> Aff (db :: DB | eff) (Array Foreign)
-privateRunQuery_ q (Params params) transaction =
-  makeAff (\reject accept -> runFn6 runQuery_ error reject accept transaction (show q) params)
+privateRunQuery_ :: forall eff a. Query a -> Params -> InTransaction eff (Array Foreign)
+privateRunQuery_ q (Params params) = do
+  transaction <- ask
+  lift $ makeAff (\reject accept -> runFn6 runQuery_ error reject accept transaction (show q) params)
 
 closeSession :: forall eff. Session -> Aff (db :: DB | eff) Unit
 closeSession session = liftEff $ runFn1 closeSession_ session
