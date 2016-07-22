@@ -37,3 +37,14 @@ main = do
               execute' (Query "CREATE (a:Person {name:'Arthur', title:'King'})")
               query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query Person) (mkParams {name: "Arthur"})
         personResults `shouldEqual` [Person { name: "Arthur", title: "King" }]
+      it "doesn't commit the results of the transaction" do
+        { result1, result2 } <- withDriver info $ \driver ->
+          withSession driver $ \session -> do
+            a <- withRollback session $ do
+              execute' (Query "CREATE (a:Person {name:'Arthur', title:'King'})")
+              query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query Person) (mkParams {name: "Arthur"})
+            b <- withRollback session $ do
+              query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query Person) (mkParams {name: "Arthur"})
+            pure { result1: a, result2: b }
+        result1 `shouldEqual` [Person { name: "Arthur", title: "King" }]
+        result2 `shouldEqual` []
