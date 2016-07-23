@@ -38,6 +38,11 @@ bower install purescript-neo4j
 pulp build
 ```
 
+## Run Example
+```sh
+pulp server -I example
+```
+
 ## Testing
 
 Install the [Neo4J Community Edition](https://neo4j.com/download/) according to

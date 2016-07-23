@@ -52,11 +52,11 @@ type InTransaction eff a = ReaderT Transaction (Aff (neo4j :: NEO4J | eff)) a
 -- | Query parameters.
 newtype Params = Params Foreign
 
-myForeignOpts :: Options
-myForeignOpts = defaultOptions { unwrapNewtypes = true }
+defaultForeignOptions :: Options
+defaultForeignOptions = defaultOptions { unwrapNewtypes = true }
 
 instance isForeignBasicAuth :: IsForeign BasicAuth where
-  read = readGeneric myForeignOpts
+  read = readGeneric defaultForeignOptions
 
 newtype ConnectionOptions = ConnectionOptions
   { encrypted :: Boolean
@@ -65,7 +65,7 @@ newtype ConnectionOptions = ConnectionOptions
 derive instance genericConnectionOpts :: Generic ConnectionOptions
 
 instance isForeignConnectionOpts :: IsForeign ConnectionOptions where
-  read = readGeneric myForeignOpts
+  read = readGeneric defaultForeignOptions
 
 defaultConnectionOptions :: ConnectionOptions
 defaultConnectionOptions = ConnectionOptions
@@ -92,8 +92,8 @@ mkAuth user pass = unsafeFromForeign (mkAuth_ user pass)
 -- | wrapper that closes the driver.)
 mkDriver :: forall eff. ConnectionInfo -> Eff (neo4j :: NEO4J | eff) Driver
 mkDriver (ConnectionInfo { url, auth, connectionOpts }) =
-  let auth' = toForeignGeneric myForeignOpts auth
-      connectionOpts' = toForeignGeneric myForeignOpts connectionOpts
+  let auth' = toForeignGeneric defaultForeignOptions auth
+      connectionOpts' = toForeignGeneric defaultForeignOptions connectionOpts
   in runFn3 mkDriver_ url auth' connectionOpts'
 
 -- | Create a `Session` from a `Driver`. (See `withSession` for a convenient

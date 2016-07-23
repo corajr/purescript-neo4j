@@ -4,7 +4,7 @@ import Prelude
 import Data.Foreign.Class (class IsForeign)
 import Data.Foreign.Generic (readGeneric)
 import Data.Generic (class Generic, gShow, gEq)
-import Database.Neo4J (myForeignOpts)
+import Database.Neo4J (defaultForeignOptions)
 
 newtype Person = Person
   { name :: String
@@ -20,4 +20,4 @@ instance eqPerson :: Eq Person where
   eq = gEq
 
 instance isForeignPerson :: IsForeign Person where
-  read = readGeneric myForeignOpts
+  read = readGeneric defaultForeignOptions
