@@ -1,8 +1,8 @@
 module Database.Neo4J where
 
 import Prelude
-import Data.Function.Uncurried
-import Control.Monad.Aff (Aff, makeAff, finally, liftEff')
+import Data.Function.Uncurried (Fn1, Fn3, Fn6, runFn1, runFn3, runFn6)
+import Control.Monad.Aff (Aff, makeAff, finally)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Exception (Error, error)
@@ -10,7 +10,7 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans   (ReaderT(), runReaderT, ask)
 import Control.Monad.Trans (lift)
 import Data.Either (either)
-import Data.Foreign (F, Foreign, toForeign, unsafeFromForeign, ForeignError)
+import Data.Foreign (Foreign, toForeign, unsafeFromForeign, ForeignError)
 import Data.Foreign.Class (class IsForeign, read)
 import Data.Foreign.Generic (toForeignGeneric, Options, defaultOptions, readGeneric)
 import Data.Generic (class Generic, gEq, gShow)
@@ -19,7 +19,7 @@ import Data.Traversable (traverse)
 foreign import data Driver :: *
 foreign import data Session :: *
 foreign import data Transaction :: *
-foreign import data DB :: !
+foreign import data NEO4J :: !
 
 type Username = String
 type Password = String
@@ -47,7 +47,7 @@ instance showQuery :: Show (Query a) where
   show (Query n) = n
 
 -- | Type of queries (transaction is held in a ReaderT environment).
-type InTransaction eff a = ReaderT Transaction (Aff (db :: DB | eff)) a
+type InTransaction eff a = ReaderT Transaction (Aff (neo4j :: NEO4J | eff)) a
 
 -- | Query parameters.
 newtype Params = Params Foreign
@@ -90,7 +90,7 @@ mkAuth user pass = unsafeFromForeign (mkAuth_ user pass)
 
 -- | Create a `Driver` from a `ConnectionInfo`. (See `withDriver` for a convenient
 -- | wrapper that closes the driver.)
-mkDriver :: forall eff. ConnectionInfo -> Eff (db :: DB | eff) Driver
+mkDriver :: forall eff. ConnectionInfo -> Eff (neo4j :: NEO4J | eff) Driver
 mkDriver (ConnectionInfo { url, auth, connectionOpts }) =
   let auth' = toForeignGeneric myForeignOpts auth
       connectionOpts' = toForeignGeneric myForeignOpts connectionOpts
@@ -98,7 +98,7 @@ mkDriver (ConnectionInfo { url, auth, connectionOpts }) =
 
 -- | Create a `Session` from a `Driver`. (See `withSession` for a convenient
 -- | wrapper that closes the session.)
-mkSession :: forall eff. Driver -> Eff (db :: DB | eff) Session
+mkSession :: forall eff. Driver -> Eff (neo4j :: NEO4J | eff) Session
 mkSession driver = runFn1 mkSession_ driver
 
 -- | Turns a record such as `{name: "Arthur"}` into parameters for a query.
@@ -110,8 +110,8 @@ mkParams = Params <<< toForeign
 -- | over the lifecycle of the application.
 withDriver :: forall eff a.
               ConnectionInfo
-           -> (Driver -> Aff (db :: DB | eff) a)
-           -> Aff (db :: DB | eff) a
+           -> (Driver -> Aff (neo4j :: NEO4J | eff) a)
+           -> Aff (neo4j :: NEO4J | eff) a
 withDriver info f = do
   driver <- liftEff $ mkDriver info
   finally (f driver) $ closeDriver driver
@@ -120,8 +120,8 @@ withDriver info f = do
 -- | and finally closes the session.
 withSession :: forall eff a.
                Driver
-            -> (Session -> Aff (db :: DB | eff) a)
-            -> Aff (db :: DB | eff) a
+            -> (Session -> Aff (neo4j :: NEO4J | eff) a)
+            -> Aff (neo4j :: NEO4J | eff) a
 withSession driver f = do
   session <- liftEff $ mkSession driver
   finally (f session) $ closeSession session
@@ -131,7 +131,7 @@ withSession driver f = do
 withTransaction :: forall eff a.
                    Session
                 -> InTransaction eff a
-                -> Aff (db :: DB | eff) a
+                -> Aff (neo4j :: NEO4J | eff) a
 withTransaction session f = do
   transaction <- liftEff $ runFn1 beginTransaction_ session
   finally (runReaderT f transaction) (liftEff $ runFn1 commitTransaction_ transaction)
@@ -142,7 +142,7 @@ withTransaction session f = do
 withRollback :: forall eff a.
                 Session
              -> InTransaction eff a
-             -> Aff (db :: DB | eff) a
+             -> Aff (neo4j :: NEO4J | eff) a
 withRollback session f = do
   transaction <- liftEff $ runFn1 beginTransaction_ session
   finally (runReaderT f transaction) (liftEff $ runFn1 rollbackTransaction_ transaction)
@@ -176,11 +176,11 @@ privateRunQuery_ q (Params params) = do
   lift $ makeAff (\reject accept -> runFn6 runQuery_ error reject accept transaction (show q) params)
 
 -- | Close the session.
-closeSession :: forall eff. Session -> Aff (db :: DB | eff) Unit
+closeSession :: forall eff. Session -> Aff (neo4j :: NEO4J | eff) Unit
 closeSession session = liftEff $ runFn1 closeSession_ session
 
 -- | Close the driver.
-closeDriver :: forall eff. Driver -> Aff (db :: DB | eff) Unit
+closeDriver :: forall eff. Driver -> Aff (neo4j :: NEO4J | eff) Unit
 closeDriver driver = liftEff $ runFn1 closeDriver_ driver
 
 liftError :: forall e a. ForeignError -> Aff e a
@@ -188,18 +188,18 @@ liftError err = throwError $ error (show err)
 
 foreign import mkAuth_ :: Username -> Password -> Foreign
 
-foreign import mkDriver_ :: forall eff. Fn3 String Foreign Foreign (Eff (db :: DB | eff) Driver)
+foreign import mkDriver_ :: forall eff. Fn3 String Foreign Foreign (Eff (neo4j :: NEO4J | eff) Driver)
 
-foreign import mkSession_ :: forall eff. Fn1 Driver (Eff (db :: DB | eff) Session)
+foreign import mkSession_ :: forall eff. Fn1 Driver (Eff (neo4j :: NEO4J | eff) Session)
 
-foreign import runQuery_ :: forall eff. Fn6 (String -> Error) (Error -> Eff (db :: DB | eff) Unit) (Array Foreign -> Eff (db :: DB | eff) Unit) Transaction String Foreign (Eff (db :: DB | eff) Unit)
+foreign import runQuery_ :: forall eff. Fn6 (String -> Error) (Error -> Eff (neo4j :: NEO4J | eff) Unit) (Array Foreign -> Eff (neo4j :: NEO4J | eff) Unit) Transaction String Foreign (Eff (neo4j :: NEO4J | eff) Unit)
 
-foreign import beginTransaction_ :: forall eff. Fn1 Session (Eff (db :: DB | eff) Transaction)
+foreign import beginTransaction_ :: forall eff. Fn1 Session (Eff (neo4j :: NEO4J | eff) Transaction)
 
-foreign import commitTransaction_ :: forall eff. Fn1 Transaction (Eff (db :: DB | eff) Unit)
+foreign import commitTransaction_ :: forall eff. Fn1 Transaction (Eff (neo4j :: NEO4J | eff) Unit)
 
-foreign import rollbackTransaction_ :: forall eff. Fn1 Transaction (Eff (db :: DB | eff) Unit)
+foreign import rollbackTransaction_ :: forall eff. Fn1 Transaction (Eff (neo4j :: NEO4J | eff) Unit)
 
-foreign import closeSession_ :: forall eff. Fn1 Session (Eff (db :: DB | eff) Unit)
+foreign import closeSession_ :: forall eff. Fn1 Session (Eff (neo4j :: NEO4J | eff) Unit)
 
-foreign import closeDriver_ :: forall eff. Fn1 Driver (Eff (db :: DB | eff) Unit)
+foreign import closeDriver_ :: forall eff. Fn1 Driver (Eff (neo4j :: NEO4J | eff) Unit)
