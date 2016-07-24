@@ -27,8 +27,8 @@ runWithRollback f =
 examplePerson :: Person
 examplePerson = Person { name: "Arthur", age: toNeoInt 123}
 
-exampleCreateQuery :: Query Unit
-exampleCreateQuery = Query "CREATE (a:Person {name:'Arthur', age: 123})"
+exampleCreateQuery :: String
+exampleCreateQuery = "CREATE (a:Person {name:'Arthur', age: 123})"
 
 main = do
   describe "mkAuth" do
@@ -51,30 +51,27 @@ main = do
     describe "query" do
       it "returns an array of nodes" do
         results <- runWithRollback do
-          execute' exampleCreateQuery
-          query' (Query "MATCH (x:Person) RETURN x" :: Query' (Node Person))
+          query' (Query (exampleCreateQuery <> " RETURN a as x") :: Query' (Node Person))
         map (\(XRecord {x: (Node rec)}) -> rec.properties) results `shouldEqual` [examplePerson]
       it "can return a single string value" do
         results <- runWithRollback do
-          execute' exampleCreateQuery
-          query' (Query "MATCH (a:Person) RETURN a.name" :: Query NameRec)
+          query' (Query (exampleCreateQuery <> " RETURN a.name") :: Query NameRec)
         results `shouldEqual` [NameRec {"a.name": "Arthur"}]
       it "can return a single int" do
         results <- runWithRollback do
-          execute' exampleCreateQuery
-          query' (Query "MATCH (a:Person) RETURN a.age as x" :: Query' NeoInteger)
+          query' (Query (exampleCreateQuery <> " RETURN a.age as x") :: Query' NeoInteger)
         results `shouldEqual` [XRecord {x: toNeoInt 123}]
     describe "withRollback" do
       it "wraps a database query in a transaction, closing the connection when finished" do
         personResults <- runWithRollback do
-          execute' exampleCreateQuery
+          execute' (Query exampleCreateQuery)
           query (Query "MATCH (x:Person) WHERE x.name = {name} RETURN x" :: Query' (Node Person)) (mkParams {name: "Arthur"})
         map (\(XRecord {x: (Node rec)}) -> rec.properties) personResults `shouldEqual` [examplePerson]
       it "doesn't commit the results of the transaction" do
         { result1, result2 } <- withDriver serverInfo $ \driver ->
           withSession driver $ \session -> do
             a <- withRollback session $ do
-              execute' exampleCreateQuery
+              execute' (Query exampleCreateQuery)
               query (Query "MATCH (x:Person) WHERE x.name = {name} RETURN x" :: Query' (Node Person)) (mkParams {name: "Arthur"})
             b <- withRollback session $ do
               query (Query "MATCH (x:Person) WHERE x.name = {name} RETURN x" :: Query' (Node Person)) (mkParams {name: "Arthur"})
