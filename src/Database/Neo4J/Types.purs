@@ -60,6 +60,9 @@ instance showNode :: (Generic a) => Show (Node a) where
 instance isForeignNode :: (Generic (Node a)) => IsForeign (Node a) where
   read = readGeneric defaultForeignOptions
 
+getProperties :: forall a. Node a -> a
+getProperties (Node {identity, labels, properties}) = properties
+
 newtype Relationship a = Relationship
   { identity :: NeoInteger
   , start :: NeoInteger

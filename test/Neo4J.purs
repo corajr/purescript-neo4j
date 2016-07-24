@@ -43,16 +43,23 @@ main = do
       quickCheck \i -> fromNeoInt (toNeoInt i) === i
   describe "integration" do
     describe "execute" do
-      it "creates nodes and relationships" do
+      it "takes parameters and creates nodes" do
+        let nodeProps = [Person {name: "Angela", age: toNeoInt 62}, Person {name: "Beryl", age: toNeoInt 20}]
+        nodes <- runWithRollback do
+          execute (Query "UNWIND {nodeProps} AS properties CREATE (n:Person) SET n = properties") (mkParams {nodeProps: nodeProps})
+          query' (Query "MATCH (x:Person) RETURN x ORDER BY x.name" :: Query' (Node Person))
+        map (getProperties <<< unbox) nodes `shouldEqual` nodeProps
+    describe "execute'" do
+      it "takes no parameters and creates nodes and relationships" do
         relations <- runWithRollback do
           execute' (Query "CREATE (adam:User { name: 'Adam' }),(pernilla:User { name: 'Pernilla' }),(david:User { name: 'David'}), (adam)-[:FRIEND]->(pernilla),(pernilla)-[:FRIEND]->(david)")
           query' (Query "Match (a)-[x:FRIEND]->(b) RETURN x" :: Query' Relationship')
         map ((\(Relationship rec) -> rec."type") <<< unbox) relations `shouldEqual` ["FRIEND", "FRIEND"]
-    describe "query" do
-      it "returns an array of nodes" do
+    describe "query'" do
+      it "returns an array of records" do
         results <- runWithRollback do
           query' (Query (exampleCreateQuery <> " RETURN a as x") :: Query' (Node Person))
-        map (\(XRecord {x: (Node rec)}) -> rec.properties) results `shouldEqual` [examplePerson]
+        map (getProperties <<< unbox) results `shouldEqual` [examplePerson]
       it "can return a single string value" do
         results <- runWithRollback do
           query' (Query (exampleCreateQuery <> " RETURN a.name") :: Query NameRec)
@@ -66,7 +73,7 @@ main = do
         personResults <- runWithRollback do
           execute' (Query exampleCreateQuery)
           query (Query "MATCH (x:Person) WHERE x.name = {name} RETURN x" :: Query' (Node Person)) (mkParams {name: "Arthur"})
-        map (\(XRecord {x: (Node rec)}) -> rec.properties) personResults `shouldEqual` [examplePerson]
+        map (getProperties <<< unbox) personResults `shouldEqual` [examplePerson]
       it "doesn't commit the results of the transaction" do
         { result1, result2 } <- withDriver serverInfo $ \driver ->
           withSession driver $ \session -> do
