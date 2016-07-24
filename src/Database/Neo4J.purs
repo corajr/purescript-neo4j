@@ -1,4 +1,6 @@
-module Database.Neo4J where
+module Database.Neo4J ( module Database.Neo4J
+                      , module Database.Neo4J.Types
+                      , module Database.Neo4J.Connection) where
 
 import Prelude
 import Data.Function.Uncurried (Fn1, Fn3, Fn6, runFn1, runFn3, runFn6)
@@ -10,83 +12,21 @@ import Control.Monad.Error.Class (throwError)
 import Control.Monad.Reader.Trans   (ReaderT(), runReaderT, ask)
 import Control.Monad.Trans (lift)
 import Data.Either (either)
-import Data.Foreign (Foreign, toForeign, unsafeFromForeign, ForeignError)
+import Data.Foreign (Foreign, ForeignError)
 import Data.Foreign.Class (class IsForeign, read)
-import Data.Foreign.Generic (toForeignGeneric, Options, defaultOptions, readGeneric)
-import Data.Generic (class Generic, gEq, gShow)
+import Data.Foreign.Generic (toForeignGeneric)
 import Data.Traversable (traverse)
+
+import Database.Neo4J.Types
+import Database.Neo4J.Connection
 
 foreign import data Driver :: *
 foreign import data Session :: *
 foreign import data Transaction :: *
 foreign import data NEO4J :: !
 
-type Username = String
-type Password = String
-
-newtype BasicAuth = BasicAuth
-  { scheme :: String
-  , principal :: Username
-  , credentials :: Password
-  }
-
-derive instance genericBasicAuth :: Generic BasicAuth
-
-instance showBasicAuth :: Show BasicAuth where
-  show = gShow
-
-instance eqBasicAuth :: Eq BasicAuth where
-  eq = gEq
-
--- | A `Query` returns an array of `a` records.
-newtype Query a = Query String
-
-instance eqQuery :: Eq (Query a) where
-  eq (Query a) (Query b) = a == b
-instance showQuery :: Show (Query a) where
-  show (Query n) = n
-
 -- | Type of queries (transaction is held in a ReaderT environment).
 type InTransaction eff a = ReaderT Transaction (Aff (neo4j :: NEO4J | eff)) a
-
--- | Query parameters.
-newtype Params = Params Foreign
-
-defaultForeignOptions :: Options
-defaultForeignOptions = defaultOptions { unwrapNewtypes = true }
-
-instance isForeignBasicAuth :: IsForeign BasicAuth where
-  read = readGeneric defaultForeignOptions
-
-newtype ConnectionOptions = ConnectionOptions
-  { encrypted :: Boolean
-  }
-
-derive instance genericConnectionOpts :: Generic ConnectionOptions
-
-instance isForeignConnectionOpts :: IsForeign ConnectionOptions where
-  read = readGeneric defaultForeignOptions
-
-defaultConnectionOptions :: ConnectionOptions
-defaultConnectionOptions = ConnectionOptions
-  { encrypted: false
-  }
-
--- | Server connection info; example:
--- |
--- | { url: "bolt://localhost",
--- | , auth: mkAuth "username" "password"
--- | , connectionOpts: defaultConnectionOptions { encrypted = true }
--- | }
-data ConnectionInfo = ConnectionInfo
-  { url :: String
-  , auth :: BasicAuth
-  , connectionOpts :: ConnectionOptions
-  }
-
--- | Make a `BasicAuth` object suitable for the Neo4J driver.
-mkAuth :: Username -> Password -> BasicAuth
-mkAuth user pass = unsafeFromForeign (mkAuth_ user pass)
 
 -- | Create a `Driver` from a `ConnectionInfo`. (See `withDriver` for a convenient
 -- | wrapper that closes the driver.)
@@ -100,10 +40,6 @@ mkDriver (ConnectionInfo { url, auth, connectionOpts }) =
 -- | wrapper that closes the session.)
 mkSession :: forall eff. Driver -> Eff (neo4j :: NEO4J | eff) Session
 mkSession driver = runFn1 mkSession_ driver
-
--- | Turns a record such as `{name: "Arthur"}` into parameters for a query.
-mkParams :: forall a. a -> Params
-mkParams = Params <<< toForeign
 
 -- | Creates a `Driver` from the `ConnectionInfo`, runs the provided `Aff`
 -- | action, and finally closes the driver. One driver is suggested per server
@@ -186,7 +122,11 @@ closeDriver driver = liftEff $ runFn1 closeDriver_ driver
 liftError :: forall e a. ForeignError -> Aff e a
 liftError err = throwError $ error (show err)
 
-foreign import mkAuth_ :: Username -> Password -> Foreign
+foreign import toNeoInt :: Int -> NeoInteger
+
+foreign import stringToNeoInt :: String -> NeoInteger
+
+foreign import fromNeoInt :: NeoInteger -> Int
 
 foreign import mkDriver_ :: forall eff. Fn3 String Foreign Foreign (Eff (neo4j :: NEO4J | eff) Driver)
 

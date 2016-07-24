@@ -12,10 +12,24 @@ function getNeo4J() {
   return g.neo4j.v1;
 }
 
-exports.mkAuth_ = function mkAuth_(username) {
-  return function(password) {
-    return getNeo4J().auth.basic(username, password);
-  };
+function convertToObject(record) {
+  var rec = {};
+  record.forEach(function(value, key) {
+    rec[key] = value;
+  });
+  return rec;
+}
+
+exports.toNeoInt = function(i) {
+  return getNeo4J().int(i);
+};
+
+exports.stringToNeoInt = function(x) {
+  return getNeo4J().int(x);
+};
+
+exports.fromNeoInt = function (n) {
+  return n.toInt();
 };
 
 exports.mkDriver_ = function mkDriver_(url, auth, opts) {
@@ -38,8 +52,9 @@ exports.runQuery_ = function runQuery_(mkError, reject, accept, transaction, que
       .then(function (result) {
         var records = [];
         for (var i = 0; i < result.records.length; i++) {
-          records.push(result.records[i]._fields[0].properties);
+          records.push(convertToObject(result.records[i]));
         }
+        console.log(records);
         accept(records)();
       })
       .catch(function (err) {
