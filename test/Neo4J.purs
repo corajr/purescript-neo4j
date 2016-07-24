@@ -46,14 +46,14 @@ main = do
       it "creates nodes and relationships" do
         relations <- runWithRollback do
           execute' (Query "CREATE (adam:User { name: 'Adam' }),(pernilla:User { name: 'Pernilla' }),(david:User { name: 'David'}), (adam)-[:FRIEND]->(pernilla),(pernilla)-[:FRIEND]->(david)")
-          query' (Query "Match (a)-[r:FRIEND]->(b) RETURN r" :: Query FriendRec)
-        map (\(FriendRec {r: (Relationship rec)}) -> rec."type") relations `shouldEqual` ["FRIEND", "FRIEND"]
+          query' (Query "Match (a)-[x:FRIEND]->(b) RETURN x" :: Query' Relationship')
+        map ((\(Relationship rec) -> rec."type") <<< unbox) relations `shouldEqual` ["FRIEND", "FRIEND"]
     describe "query" do
       it "returns an array of nodes" do
         results <- runWithRollback do
           execute' exampleCreateQuery
-          query' (Query "MATCH (a:Person) RETURN a" :: Query NodePersonRec)
-        map (\(NodePersonRec {a: (Node rec)}) -> rec.properties) results `shouldEqual` [examplePerson]
+          query' (Query "MATCH (x:Person) RETURN x" :: Query' (Node Person))
+        map (\(XRecord {x: (Node rec)}) -> rec.properties) results `shouldEqual` [examplePerson]
       it "can return a single string value" do
         results <- runWithRollback do
           execute' exampleCreateQuery
@@ -62,22 +62,22 @@ main = do
       it "can return a single int" do
         results <- runWithRollback do
           execute' exampleCreateQuery
-          query' (Query "MATCH (a:Person) RETURN a.age" :: Query AgeRec)
-        results `shouldEqual` [AgeRec {"a.age": toNeoInt 123}]
+          query' (Query "MATCH (a:Person) RETURN a.age as x" :: Query' NeoInteger)
+        results `shouldEqual` [XRecord {x: toNeoInt 123}]
     describe "withRollback" do
       it "wraps a database query in a transaction, closing the connection when finished" do
         personResults <- runWithRollback do
           execute' exampleCreateQuery
-          query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query NodePersonRec) (mkParams {name: "Arthur"})
-        map (\(NodePersonRec {a: (Node rec)}) -> rec.properties) personResults `shouldEqual` [examplePerson]
+          query (Query "MATCH (x:Person) WHERE x.name = {name} RETURN x" :: Query' (Node Person)) (mkParams {name: "Arthur"})
+        map (\(XRecord {x: (Node rec)}) -> rec.properties) personResults `shouldEqual` [examplePerson]
       it "doesn't commit the results of the transaction" do
         { result1, result2 } <- withDriver serverInfo $ \driver ->
           withSession driver $ \session -> do
             a <- withRollback session $ do
               execute' exampleCreateQuery
-              query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query NodePersonRec) (mkParams {name: "Arthur"})
+              query (Query "MATCH (x:Person) WHERE x.name = {name} RETURN x" :: Query' (Node Person)) (mkParams {name: "Arthur"})
             b <- withRollback session $ do
-              query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query NodePersonRec) (mkParams {name: "Arthur"})
+              query (Query "MATCH (x:Person) WHERE x.name = {name} RETURN x" :: Query' (Node Person)) (mkParams {name: "Arthur"})
             pure { result1: a, result2: b }
-        map (\(NodePersonRec {a: (Node rec)}) -> rec.properties) result1 `shouldEqual` [examplePerson]
+        map (\(XRecord {x: (Node rec)}) -> rec.properties) result1 `shouldEqual` [examplePerson]
         result2 `shouldEqual` []

@@ -14,6 +14,13 @@ instance eqQuery :: Eq (Query a) where
 instance showQuery :: Show (Query a) where
   show (Query n) = n
 
+-- | A convenience type for queries with one item of interest, which must be
+-- | denoted by an `x`. For example:
+-- |
+-- | `Query "MATCH (x:Person) RETURN x" :: Query' (Node Person)` -- returns {x: Node { ..., properties: Person {...}}}
+-- | `Query "MATCH (a:Person) RETURN a.name as x" :: Query' String` -- returns {x: "..."}
+type Query' a = Query (XRecord a)
+
 -- | Query parameters.
 newtype Params = Params Foreign
 
@@ -70,6 +77,8 @@ instance showRelationship :: (Generic a) => Show (Relationship a) where
 instance isForeignRelationship :: (Generic (Relationship a)) => IsForeign (Relationship a) where
   read = readGeneric defaultForeignOptions
 
+-- | A type for relationships with no added properties
+type Relationship' = Relationship NoProps
 
 newtype XRecord a = XRecord
   { x :: a }
@@ -81,5 +90,18 @@ instance showXRecord :: (Generic a) => Show (XRecord a) where
   show = gShow
 
 instance isForeignXRecord :: (Generic (XRecord a)) => IsForeign (XRecord a) where
+  read = readGeneric defaultForeignOptions
+
+unbox :: forall a. XRecord a -> a
+unbox (XRecord {x}) = x
+
+newtype NoProps = NoProps
+  { }
+
+derive instance genericNoProps :: Generic NoProps
+derive instance eqNoProps :: Eq NoProps
+instance showNoProps :: Show NoProps where
+  show = const ""
+instance isForeignNoProps :: IsForeign NoProps where
   read = readGeneric defaultForeignOptions
 
