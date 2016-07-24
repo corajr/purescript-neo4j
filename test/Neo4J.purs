@@ -46,7 +46,7 @@ main = do
       it "returns an array of nodes" do
         results <- runWithRollback do
           execute' exampleCreateQuery
-          query' (Query "MATCH (a:Person) LIMIT 1 RETURN a" :: Query NodePersonRec)
+          query' (Query "MATCH (a:Person) RETURN a" :: Query NodePersonRec)
         map (\(NodePersonRec {a: (Node rec)}) -> rec.properties) results `shouldEqual` [examplePerson]
       it "can return a single string value" do
         results <- runWithRollback do
