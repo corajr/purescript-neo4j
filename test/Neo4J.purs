@@ -2,13 +2,14 @@ module Test.Neo4J where
 
 import Prelude
 import Database.Neo4J
-import Data.Array (take)
 import Test.Fixture
 import Control.Monad.Aff (attempt)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (log)
+import Data.Array (take)
 import Data.Either (Either(..))
 import Test.QuickCheck ((===))
+import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.Spec (describe, pending, it)
 import Test.Spec.Assertions (shouldEqual, fail)
 import Test.Spec.Assertions.Aff (expectError)
@@ -31,6 +32,15 @@ examplePerson = Person { name: "Arthur", age: toNeoInt 123}
 exampleCreateQuery :: String
 exampleCreateQuery = "CREATE (a:Person {name:'Arthur', age: 123})"
 
+newtype NInt = NInt NeoInteger
+
+derive instance eqNInt :: Eq NInt
+
+instance arbNeoInt :: Arbitrary NInt where
+  arbitrary = do
+    n <- arbitrary
+    pure $ NInt (toNeoInt n)
+
 main = do
   describe "mkAuth" do
     it "takes a username and password and returns an Auth" $
@@ -40,8 +50,11 @@ main = do
                                            , credentials: pass
                                            }
   describe "toNeoInt" do
-    it "fromNeoInt <<< toNeoInt == id for 32-bit ints" do
-      quickCheck \i -> fromNeoInt (toNeoInt i) === i
+    it "unsafeFromNeoInt <<< toNeoInt == id for 32-bit ints" do
+      quickCheck \i -> unsafeFromNeoInt (toNeoInt i) === i
+  describe "unsafeFromNeoInt" do
+    it "toNeoInt <<< unsafeFromNeoInt == id for 32-bit ints" do
+      quickCheck \(NInt i) -> toNeoInt (unsafeFromNeoInt i) === i
   describe "integration" do
     describe "execute" do
       it "takes parameters and creates nodes" do

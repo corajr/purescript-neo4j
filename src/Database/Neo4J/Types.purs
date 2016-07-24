@@ -45,6 +45,9 @@ instance showNeoInt :: Show NeoInteger where
 instance isForeignNeoInt :: IsForeign NeoInteger where
   read = readGeneric defaultForeignOptions
 
+unsafeFromNeoInt :: NeoInteger -> Int
+unsafeFromNeoInt (NeoInteger {high, low}) = low
+
 newtype Node a = Node
   { identity :: NeoInteger
   , labels :: Array String

@@ -126,8 +126,6 @@ foreign import toNeoInt :: Int -> NeoInteger
 
 foreign import stringToNeoInt :: String -> NeoInteger
 
-foreign import fromNeoInt :: NeoInteger -> Int
-
 foreign import mkDriver_ :: forall eff. Fn3 String Foreign Foreign (Eff (neo4j :: NEO4J | eff) Driver)
 
 foreign import mkSession_ :: forall eff. Fn1 Driver (Eff (neo4j :: NEO4J | eff) Session)
