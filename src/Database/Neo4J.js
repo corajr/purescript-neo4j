@@ -54,7 +54,6 @@ exports.runQuery_ = function runQuery_(mkError, reject, accept, transaction, que
         for (var i = 0; i < result.records.length; i++) {
           records.push(convertToObject(result.records[i]));
         }
-        console.log(records);
         accept(records)();
       })
       .catch(function (err) {

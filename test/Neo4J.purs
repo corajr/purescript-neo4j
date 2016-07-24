@@ -42,6 +42,12 @@ main = do
     it "fromNeoInt <<< toNeoInt == id for 32-bit ints" do
       quickCheck \i -> fromNeoInt (toNeoInt i) === i
   describe "integration" do
+    describe "execute" do
+      it "creates nodes and relationships" do
+        relations <- runWithRollback do
+          execute' (Query "CREATE (adam:User { name: 'Adam' }),(pernilla:User { name: 'Pernilla' }),(david:User { name: 'David'}), (adam)-[:FRIEND]->(pernilla),(pernilla)-[:FRIEND]->(david)")
+          query' (Query "Match (a)-[r:FRIEND]->(b) RETURN r" :: Query FriendRec)
+        map (\(FriendRec {r: (Relationship rec)}) -> rec."type") relations `shouldEqual` ["FRIEND", "FRIEND"]
     describe "query" do
       it "returns an array of nodes" do
         results <- runWithRollback do

@@ -4,7 +4,7 @@ import Prelude
 import Data.Foreign.Class (class IsForeign)
 import Data.Foreign.Generic (readGeneric)
 import Data.Generic (class Generic, gShow, gEq)
-import Database.Neo4J (defaultForeignOptions, Node, NeoInteger)
+import Database.Neo4J (defaultForeignOptions, Node, Relationship, NeoInteger)
 
 newtype Person = Person
   { name :: String
@@ -47,5 +47,26 @@ instance showNodePersonRec :: Show NodePersonRec where
   show = gShow
 instance isForeignNodePersonRec :: IsForeign NodePersonRec where
   read = readGeneric defaultForeignOptions
+
+newtype Friend = Friend
+  { }
+
+derive instance genericFriend :: Generic Friend
+derive instance eqFriend :: Eq Friend
+instance showFriend :: Show Friend where
+  show = gShow
+instance isForeignFriend :: IsForeign Friend where
+  read = readGeneric defaultForeignOptions
+
+newtype FriendRec = FriendRec
+  { r :: Relationship Friend }
+
+derive instance genericFriendRec :: Generic FriendRec
+derive instance eqFriendRec :: Eq FriendRec
+instance showFriendRec :: Show FriendRec where
+  show = gShow
+instance isForeignFriendRec :: IsForeign FriendRec where
+  read = readGeneric defaultForeignOptions
+
 
 
