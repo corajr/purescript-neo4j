@@ -47,10 +47,10 @@ newtype Node a = Node
 derive instance genericNode :: (Generic a) => Generic (Node a)
 derive instance eqNode :: (Eq a) => Eq (Node a)
 
-instance showNode :: (Show a, Generic a) => Show (Node a) where
+instance showNode :: (Generic a) => Show (Node a) where
   show = gShow
 
-instance isForeignNode :: (Generic (Node a), IsForeign a) => IsForeign (Node a) where
+instance isForeignNode :: (Generic (Node a)) => IsForeign (Node a) where
   read = readGeneric defaultForeignOptions
 
 newtype Relationship a = Relationship
@@ -64,8 +64,22 @@ newtype Relationship a = Relationship
 derive instance genericRelationship :: (Generic a) => Generic (Relationship a)
 derive instance eqRelationship :: (Eq a) => Eq (Relationship a)
 
-instance showRelationship :: (Show a, Generic a) => Show (Relationship a) where
+instance showRelationship :: (Generic a) => Show (Relationship a) where
   show = gShow
 
-instance isForeignRelationship :: (Generic (Relationship a), IsForeign a) => IsForeign (Relationship a) where
+instance isForeignRelationship :: (Generic (Relationship a)) => IsForeign (Relationship a) where
   read = readGeneric defaultForeignOptions
+
+
+newtype XRecord a = XRecord
+  { x :: a }
+
+derive instance genericXRecord :: (Generic a) => Generic (XRecord a)
+derive instance eqXRecord :: (Eq a) => Eq (XRecord a)
+
+instance showXRecord :: (Generic a) => Show (XRecord a) where
+  show = gShow
+
+instance isForeignXRecord :: (Generic (XRecord a)) => IsForeign (XRecord a) where
+  read = readGeneric defaultForeignOptions
+
