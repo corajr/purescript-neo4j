@@ -2,6 +2,7 @@ module Test.Neo4J where
 
 import Prelude
 import Database.Neo4J
+import Data.Array (take)
 import Test.Fixture
 import Control.Monad.Aff (attempt)
 import Control.Monad.Eff.Class (liftEff)
@@ -55,8 +56,18 @@ main = do
           execute' (Query "CREATE (adam:User { name: 'Adam' }),(pernilla:User { name: 'Pernilla' }),(david:User { name: 'David'}), (adam)-[:FRIEND]->(pernilla),(pernilla)-[:FRIEND]->(david)")
           query' (Query "Match (a)-[x:FRIEND]->(b) RETURN x" :: Query' Relationship')
         map ((\(Relationship rec) -> rec."type") <<< unbox) relations `shouldEqual` ["FRIEND", "FRIEND"]
+    describe "query" do
+      it "takes parameters and returns an array of records" do
+        let nodeProps = [ Person {name: "Angela", age: toNeoInt 62}
+                        , Person {name: "Beryl", age: toNeoInt 20}
+                        , Person {name: "Charlene", age: toNeoInt 10}
+                        ]
+        nodes <- runWithRollback do
+          execute (Query "UNWIND {nodeProps} AS properties CREATE (n:Person) SET n = properties") (mkParams {nodeProps: nodeProps})
+          query (Query "MATCH (x:Person) WHERE x.age > {age} RETURN x ORDER BY x.name" :: Query' (Node Person)) (mkParams {age:10})
+        map (getProperties <<< unbox) nodes `shouldEqual` take 2 nodeProps
     describe "query'" do
-      it "returns an array of records" do
+      it "takes no parameters and returns an array of records" do
         results <- runWithRollback do
           query' (Query (exampleCreateQuery <> " RETURN a as x") :: Query' (Node Person))
         map (getProperties <<< unbox) results `shouldEqual` [examplePerson]
