@@ -51,12 +51,12 @@ main = do
       it "can return a single string value" do
         results <- runWithRollback do
           execute' exampleCreateQuery
-          query' (Query "MATCH (a:Person) LIMIT 1 RETURN a.name" :: Query NameRec)
+          query' (Query "MATCH (a:Person) RETURN a.name" :: Query NameRec)
         results `shouldEqual` [NameRec {"a.name": "Arthur"}]
       it "can return a single int" do
         results <- runWithRollback do
           execute' exampleCreateQuery
-          query' (Query "MATCH (a:Person) LIMIT 1 RETURN a.age" :: Query AgeRec)
+          query' (Query "MATCH (a:Person) RETURN a.age" :: Query AgeRec)
         results `shouldEqual` [AgeRec {"a.age": toNeoInt 123}]
     describe "withRollback" do
       it "wraps a database query in a transaction, closing the connection when finished" do
