@@ -28,7 +28,7 @@ exports.stringToNeoInt = function(x) {
   return getNeo4J().int(x);
 };
 
-exports.fromNeoInt = function (n) {
+exports.unsafeFromNeoInt = function (n) {
   return n.toInt();
 };
 

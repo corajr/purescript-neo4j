@@ -1,8 +1,10 @@
 module Test.Fixture where
 
 import Prelude
-import Data.Foreign.Class (class IsForeign)
+import Data.Maybe (Maybe(..))
+import Data.Foreign.Class (class IsForeign, readProp)
 import Data.Foreign.Generic (readGeneric)
+import Data.Foreign.NullOrUndefined (unNullOrUndefined, NullOrUndefined(NullOrUndefined))
 import Data.Generic (class Generic, gShow, gEq)
 import Database.Neo4J (defaultForeignOptions, Node, NeoInteger)
 
@@ -33,3 +35,36 @@ instance showNameRec :: Show NameRec where
   show = gShow
 instance isForeignNameRec :: IsForeign NameRec where
   read = readGeneric defaultForeignOptions
+
+--  Also note that only an IsForeign instance is needed, not Generic. (Show and
+--  Eq needed for test purposes.)
+newtype AgeRec = AgeRec
+  { "a.age" :: NeoInteger }
+derive instance eqAgeRec :: Eq AgeRec
+instance showAgeRec :: Show AgeRec where
+  show (AgeRec { "a.age": age}) = "{ 'a.age': " <> show age <> " }"
+instance isForeignAgeRec :: IsForeign AgeRec where
+  read value = do
+    x <- readProp "a.age" value
+    pure $ AgeRec {"a.age": x}
+
+-- Can use I
+newtype OptionalFields = OptionalFields
+  { name :: String
+  , age :: NullOrUndefined NeoInteger }
+instance isForeignOptionalFields :: IsForeign OptionalFields where
+  read value = do
+    name <- readProp "name" value
+    age <- readProp "age" value
+    pure $ OptionalFields { name: name, age: age}
+
+newtype EqOptionalFields = EqOptionalFields
+  { name :: String
+  , age :: Maybe NeoInteger }
+derive instance eqEqOptional :: Eq EqOptionalFields
+instance showEqOptional :: Show EqOptionalFields where
+  show (EqOptionalFields {name, age}) = "EqOptionalFields { name: " <> show name <> ", age: " <> show age <> " }"
+
+unwrapOptionalFields :: OptionalFields -> EqOptionalFields
+unwrapOptionalFields (OptionalFields { name, age}) =
+  EqOptionalFields { name: name, age: unNullOrUndefined age }

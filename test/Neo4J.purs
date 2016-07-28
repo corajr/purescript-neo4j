@@ -8,6 +8,8 @@ import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Eff.Console (log)
 import Data.Array (take)
 import Data.Either (Either(..))
+import Data.Maybe (Maybe(Nothing))
+import Data.Foreign.NullOrUndefined (NullOrUndefined(NullOrUndefined))
 import Test.QuickCheck ((===))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.Spec (describe, pending, it)
@@ -90,8 +92,13 @@ main = do
         results `shouldEqual` [NameRec {"a.name": "Arthur"}]
       it "can return a single int" do
         results <- runWithRollback do
-          query' (Query (exampleCreateQuery <> " RETURN a.age as x") :: Query' NeoInteger)
-        results `shouldEqual` [XRecord {x: toNeoInt 123}]
+          query' (Query (exampleCreateQuery <> " RETURN a.age") :: Query AgeRec)
+        results `shouldEqual` [AgeRec {"a.age": toNeoInt 123}]
+    describe "optional fields" do
+      it "can use newtypes like NullOrUndefined to indicate optional fields" do
+        results <- runWithRollback do
+          query' (Query "CREATE (x:OptionalFields {name: 'Option'}) RETURN x" :: Query' (Node OptionalFields))
+        map (unwrapOptionalFields <<< getProperties <<< unbox) results `shouldEqual` [EqOptionalFields { name: "Option", age: Nothing }]
     describe "withRollback" do
       it "wraps a database query in a transaction, closing the connection when finished" do
         personResults <- runWithRollback do
