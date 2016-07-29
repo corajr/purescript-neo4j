@@ -4,41 +4,43 @@
 
 PureScript bindings to the official [Neo4J Javascript Driver](https://github.com/neo4j/neo4j-javascript-driver).
 
-# Example
+## Example
 
 Assuming you have a type `Person` with `name` and `title` fields, and an appropriate `IsForeign Person` instance:
 
 ```purescript
 main = do
-  results <- withDriver info $ \driver ->
+  results <- withDriver connectionInfo $ \driver ->
     withSession driver $ \session -> do
-      withTransaction session $ \transaction -> do
-        execute' (Query "CREATE (a:Person {name:'Arthur', title:'King'})") transaction
-        query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query Person) (mkParams {name: "Arthur"}) transaction
-  results `shouldEqual` [Person { name: "Arthur", title: "King" }]
+      withTransaction session $ do
+        execute' (Query "CREATE (a:Person {name:'Arthur', title:'King'})")
+        query (Query "MATCH (a:Person) WHERE a.name = {name} RETURN a" :: Query' Person) (mkParams {name: "Arthur"})
+  map (getProperties <<< unbox) results `shouldEqual` [Person { name: "Arthur", title: "King" }]
 ```
 
-The
+See
+[example/Main.purs](https://github.com/corajr/purescript-neo4j/blob/master/example/Main.purs)
+for a complete working example. The
 [tests](https://github.com/corajr/purescript-neo4j/blob/master/test/Test/Neo4J.purs)
 show additional ways of using the bindings.
 
-# Getting Started
+## Getting Started
 
-## Installation
+### Installation
 
 ```
 bower install purescript-neo4j
 ```
 
-# For Development
+## For Development
 
-## Build
+### Build
 
 ```sh
 pulp build
 ```
 
-## Testing
+### Testing
 
 Install the [Neo4J Community Edition](https://neo4j.com/download/) according to
 the instructions for your operating system. The tests assume the username is
@@ -48,3 +50,15 @@ Run `pulp test`.
 
 (Most queries in the tests are made in transactions and immediately rolled back,
 but please ensure that you do *not* run the tests against your normal database!)
+
+### Run Example
+
+Once Neo4J is running, do:
+
+```
+pulp run -I example
+```
+
+Should compile and print "Ok" to STDOUT.
+
+

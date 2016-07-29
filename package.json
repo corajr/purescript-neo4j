@@ -5,6 +5,7 @@
     "ws": "^1.1.1"
   },
   "dependencies": {
-    "indexof": "0.0.1"
+    "indexof": "0.0.1",
+    "neo4j-driver": "^1.1.0-M01"
   }
 }
