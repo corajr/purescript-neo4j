@@ -10,7 +10,7 @@ import Control.Monad.Eff.Exception (EXCEPTION)
 import Data.Either (Either(..))
 import Data.Foreign.Class (class IsForeign)
 import Data.Foreign.Generic (readGeneric)
-import Data.Generic (class Generic, gEq, gShow)
+import Data.Generic (class Generic, gShow)
 
 -- | The information used to connect to the server.
 connectionInfo :: ConnectionInfo
@@ -22,14 +22,12 @@ connectionInfo = ConnectionInfo
 
 -- | Type for the database result.
 newtype Track = Track
-  { id :: Int
+  { id :: NeoInteger
   , title :: String
   }
 
 derive instance genericTrack :: Generic Track
-
-instance eqTrack :: Eq Track where
-  eq = gEq
+derive instance eqTrack :: Eq Track
 
 instance showTrack :: Show Track where
   show = gShow
@@ -39,18 +37,14 @@ instance isForeignTrack :: IsForeign Track where
 
 -- | Add a record to the DB and return it.
 addToDB :: forall eff. Session -> Aff (neo4j :: NEO4J | eff) (Array Track)
-addToDB session =
-  withRollback session $ do
-    execute (Query "CREATE (a:Track {id: {id}, title: {title}})") (mkParams {id: 999, title: "A test"})
-    query (Query "MATCH (a:Track) WHERE a.id = {id} RETURN a" :: Query Track) (mkParams {id: 999})
-
-readFromDB :: forall eff. Session -> Aff (neo4j :: NEO4J | eff) (Array Track)
-readFromDB session =
-  withTransaction session $
-    query (Query "MATCH (a:Track) WHERE a.id = {id} RETURN a" :: Query Track) (mkParams {id: 106521709})
+addToDB session = do
+  results <- withRollback session $ do
+    query (Query "CREATE (x:Track {id: {id}, title: {title}}) RETURN x" :: Query' (Node Track)) (mkParams {id: toNeoInt 999, title: "A test"})
+  -- Query' returns an `Array (XRecord {x :: Node Track})`; use the following to turn it into `Array Track`
+  pure $ map (getProperties <<< unbox) results
 
 expected :: Array Track
-expected = [Track {id: 999, title: "A test"}]
+expected = [Track {id: toNeoInt 999, title: "A test"}]
 
 log' :: forall eff. String -> Aff (console :: CONSOLE | eff) Unit
 log' x = liftEff (log x)
@@ -77,6 +71,3 @@ main = void $ launchAff do
             log' "Actual:"
             logShow' results'
             pure unit
-      existing <- attempt (readFromDB session)
-      logShow' existing
-      pure unit
